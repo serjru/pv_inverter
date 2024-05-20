@@ -59,19 +59,19 @@ Add the following lines to your configuration.yaml in Home Assistant to set up M
         unit_of_measurement: "W"
 
 
-Usage
+## Usage
 
-Activate the Virtual Environment:
+1. **Activate the Virtual Environment**:
 
-bash
-Copy code
-source venv/bin/activate
-Run the Script:
+    ```bash
+    source venv/bin/activate
 
-bash
-Copy code
-sudo /path/to/venv/bin/python /path/to/inverter_hid.py
-Running in Background
+2. **Run the Script**:
+
+    ```bash
+    sudo /path/to/venv/bin/python /path/to/inverter_hid.py
+
+## Running in Background
 To keep the script running independently of your SSH session, use one of the following methods:
 
 Using nohup
