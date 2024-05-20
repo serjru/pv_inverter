@@ -45,7 +45,7 @@ Ensure you have an MQTT broker running and accessible. If your broker requires a
 ### Home Assistant Configuration
 Add the following lines to your configuration.yaml in Home Assistant to set up MQTT sensors:
 
-    ```byaml
+    ```yaml
     mqtt:
     sensor:
         - name: "Inverter Output Power"
