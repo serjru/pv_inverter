@@ -74,79 +74,47 @@ Add the following lines to your configuration.yaml in Home Assistant to set up M
 ## Running in Background
 To keep the script running independently of your SSH session, use one of the following methods:
 
-Using nohup
+### Using nohup
 
-bash
-Copy code
-nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
-Using tmux
+    ```bash
+    nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
 
-bash
-Copy code
-tmux new -s inverter_session
-sudo /path/to/venv/bin/python /path/to/inverter_hid.py
-# Detach by pressing Ctrl+B followed by D
-Using screen
-
-bash
-Copy code
-screen -S inverter_session
-sudo /path/to/venv/bin/python /path/to/inverter_hid.py
-# Detach by pressing Ctrl+A followed by D
-Using systemd
+### Using systemd
 
 Create a systemd service file to run the script as a service:
 
-ini
-Copy code
-[Unit]
-Description=Inverter HID Script
-After=network.target
+    ```ini
+    [Unit]
+    Description=Inverter HID Script
+    After=network.target
 
-[Service]
-ExecStart=/path/to/venv/bin/python /path/to/inverter_hid.py
-WorkingDirectory=/path/to/project
-StandardOutput=inherit
-StandardError=inherit
-Restart=always
-User=yourusername
+    [Service]
+    ExecStart=/path/to/venv/bin/python /path/to/inverter_hid.py
+    WorkingDirectory=/path/to/project
+    StandardOutput=inherit
+    StandardError=inherit
+    Restart=always
+    User=yourusername
 
-[Install]
-WantedBy=multi-user.target
+    [Install]
+    WantedBy=multi-user.target
+
 Enable and start the service:
 
-bash
-Copy code
-sudo systemctl daemon-reload
-sudo systemctl start inverter.service
-sudo systemctl enable inverter.service
-License
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl start inverter.service
+    sudo systemctl enable inverter.service
+
+## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-Acknowledgements
+## Acknowledgements
 
 Home Assistant
 paho-mqtt
-typescript
-Copy code
 
-### Summary of Changes
-- Ensured that the `mqtt` section in the YAML configuration is correctly nested.
-- Corrected any misplaced or duplicated sections.
-- Simplified some instructions for clarity.
-
-This should now display correctly in GitHub as a single, cohesive document. Replace `/path/to/` with the actual paths in your setup and `yourusername` with your actual username on the Raspberry Pi or the system where you run the script.
-
-
-
-
-
-# pv_inverter
-Data retrieval from Solar inverters
-
-Run as
-sudo /home/serj/my_project/venv/bin/python /home/serj/my_project/6inverter_hid.py
 
 More information could be found at:
 https://www.solarweb.net/forosolar/fotovoltaica-sistemas-aislados-la-red/41795-raspberry-e-hibrido-tipo-axpert-3.html
