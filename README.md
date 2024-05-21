@@ -24,7 +24,7 @@ The main purpose of this project is to monitor the performance of the MasterPowe
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/inverter-hid-script.git
+   git clone https://github.com/serjru/pv_inverter.git
    cd inverter-hid-script
 
 2. **Set Up Virtual Environment**:
