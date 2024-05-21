@@ -47,16 +47,26 @@ Add the following lines to your configuration.yaml in Home Assistant to set up M
 
     ```yaml
     mqtt:
-    sensor:
-        - name: "Inverter Output Power"
-        state_topic: "home/inverter/load_w"
-        unique_id: "mp_omega_5600_v4_1"
-        unit_of_measurement: "W"
-        
-        - name: "Inverter Solar Power"
-        state_topic: "home/inverter/solar_power"
-        unique_id: "mp_omega_5600_v4_2"
-        unit_of_measurement: "W"
+        sensor:
+            - name: "Inverter output power"
+            state_topic: "homeassistant/inverter/load_w"
+            unique_id: "mp_omega_5600_v4_1"
+            unit_of_measurement: "W"
+            
+            - name: "Inverter solar power"
+            state_topic: "homeassistant/inverter/solar_power"
+            unique_id: "mp_omega_5600_v4_2"
+            unit_of_measurement: "W"
+
+            - name: "Inverter battery state"
+            state_topic: "homeassistant/inverter/battery_capacity"
+            unique_id: "mp_omega_5600_v4_3"
+            unit_of_measurement: "%"
+
+            - name: "Inverter battery current"
+            state_topic: "homeassistant/inverter/battery_current"
+            unique_id: "mp_omega_5600_v4_4"
+            unit_of_measurement: "A"
 
 
 ## Usage
