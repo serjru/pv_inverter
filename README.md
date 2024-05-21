@@ -100,28 +100,30 @@ nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
 
 Create a systemd service file to run the script as a service:
 
-    ```ini
-    [Unit]
-    Description=Inverter HID Script
-    After=network.target
+```ini
+[Unit]
+Description=Inverter HID Script
+After=network.target
 
-    [Service]
-    ExecStart=/path/to/venv/bin/python /path/to/inverter_hid.py
-    WorkingDirectory=/path/to/project
-    StandardOutput=inherit
-    StandardError=inherit
-    Restart=always
-    User=yourusername
+[Service]
+ExecStart=/path/to/venv/bin/python /path/to/inverter_hid.py
+WorkingDirectory=/path/to/project
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=yourusername
 
-    [Install]
-    WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target
+```
 
 Enable and start the service:
 
-    ```bash
-    sudo systemctl daemon-reload
-    sudo systemctl start inverter.service
-    sudo systemctl enable inverter.service
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start inverter.service
+sudo systemctl enable inverter.service
+```
 
 ## License
 
