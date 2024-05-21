@@ -35,12 +35,10 @@ try:
             parsed_qpigs = parse_QPIGS(data)
             if parsed_qpigs:
                 # Extract specific parameters
-                load_w = parsed_qpigs['load_w']
-                solar_voltage = float(parsed_qpigs['solar_voltage'])
-                solar_current = float(parsed_qpigs['solar_current'])
-                battery_capacity = int(parsed_qpigs['battery_capacity'])
-                solar_power = solar_voltage * solar_current
-                battery_current = int(parsed_qpigs['battery_charge_current']) - int(parsed_qpigs['battery_discharge_current'])
+                load_w           = parsed_qpigs['load_w']
+                battery_capacity = parsed_qpigs['battery_capacity']
+                solar_power      = parsed_qpigs['solar_power']
+                battery_current  = parsed_qpigs['battery_current']
 
                 # Publish the specific parameters
                 publish_data(mqtt_client, "homeassistant/inverter/load_w", load_w)

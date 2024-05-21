@@ -62,33 +62,40 @@ def parse_QPIGS(data):
         # Split the data into parameters
         parameters = stripped_data.split()
         
-        # Map the parameters to their respective values
+        # Ensure there are exactly 21 parameters
+        if len(parameters) != 21:
+            raise ValueError("Unexpected number of parameters")
+        
+        # Convert parameters to appropriate types and handle errors
         parsed_values = {
-            'utility_voltage': parameters[0],  # V
-            'utility_frequency': parameters[1],  # Hz
-            'output_voltage': parameters[2],  # V
-            'output_frequency': parameters[3],  # Hz
-            'load_va': parameters[4],  # VA
-            'load_w': parameters[5],  # W
-            'load_percent': parameters[6],  # %
-            'bus_voltage': parameters[7],  # V
-            'battery_voltage': parameters[8],  # V
-            'battery_charge_current': parameters[9],  # A
-            'battery_capacity': parameters[10],  # %
-            'heatsink_temperature': parameters[11],  # Celsium
-            'solar_current': parameters[12],  # A
-            'solar_voltage': parameters[13],  # V
-            'battery_voltage_scc': parameters[14],  # V
-            'battery_discharge_current': parameters[15],  # A
-            'unknown7': parameters[16],  # Unknown parameter
-            'unknown8': parameters[17],  # Unknown parameter
-            'unknown9': parameters[18],  # Unknown parameter
-            'unknown10': parameters[19],  # Unknown parameter
-            'unknown11': parameters[20],  # Unknown parameter
-            #'unknown12': parameters[21],  # Unknown parameter
+            'utility_voltage': round(float(parameters[0]), 2),
+            'utility_frequency': round(float(parameters[1]), 2),
+            'output_voltage': round(float(parameters[2]), 2),
+            'output_frequency': round(float(parameters[3]), 2),
+            'load_va': int(parameters[4]),
+            'load_w': int(parameters[5]),
+            'load_percent': int(parameters[6]),
+            'bus_voltage': round(float(parameters[7]), 2),
+            'battery_voltage': round(float(parameters[8]), 2),
+            'battery_charge_current': int(parameters[9]),
+            'battery_capacity': int(parameters[10]),
+            'heatsink_temperature': int(parameters[11]),
+            'solar_current': round(float(parameters[12]), 2),
+            'solar_voltage': round(float(parameters[13]), 2),
+            'battery_voltage_scc': round(float(parameters[14]), 2),
+            'battery_discharge_current': int(parameters[15]),
+            'unknown7': parameters[16],  # Keeping as string until further understanding
+            'unknown8': parameters[17],  # Keeping as string until further understanding
+            'unknown9': parameters[18],  # Keeping as string until further understanding
+            'unknown10': parameters[19], # Keeping as string until further understanding
+            'unknown11': parameters[20], # Keeping as string until further understanding
         }
 
+        # Calculate additional values
+        parsed_values['solar_power'] = round(parsed_values['solar_voltage'] * parsed_values['solar_current'], 2)
+        parsed_values['battery_current'] = round(parsed_values['battery_charge_current'] - parsed_values['battery_discharge_current'], 2)
+
         return parsed_values
-    except Exception as e:
+    except (IndexError, ValueError) as e:
         print(f"Error parsing data: {e}")
         return None
