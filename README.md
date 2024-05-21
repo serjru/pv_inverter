@@ -26,16 +26,19 @@ The main purpose of this project is to monitor the performance of the MasterPowe
    ```bash
    git clone https://github.com/serjru/pv_inverter.git
    cd inverter-hid-script
+   ```
 
 2. **Set Up Virtual Environment**:
 
     ```bash
     python3 -m venv venv
     source venv/bin/activate
+    ```
 
 3. **Install Dependencies**:
     ```bash
     pip install paho-mqtt
+    ```
 
 ## Configuration
 
