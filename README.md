@@ -77,22 +77,24 @@ mqtt:
 
 1. **Activate the Virtual Environment**:
 
-    ```bash
-    source venv/bin/activate
+```bash
+source venv/bin/activate
+```
 
 2. **Run the Script**:
 
-    ```bash
-    sudo /path/to/venv/bin/python /path/to/inverter_hid.py
-    ```
+```bash
+sudo /path/to/venv/bin/python /path/to/inverter_hid.py
+```
 
 ## Running in Background
 To keep the script running independently of your SSH session, use one of the following methods:
 
 ### Using nohup
 
-    ```bash
-    nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
+```bash
+nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
+```
 
 ### Using systemd
 
