@@ -80,6 +80,7 @@ Add the following lines to your configuration.yaml in Home Assistant to set up M
 
     ```bash
     sudo /path/to/venv/bin/python /path/to/inverter_hid.py
+    ```
 
 ## Running in Background
 To keep the script running independently of your SSH session, use one of the following methods:
