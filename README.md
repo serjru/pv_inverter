@@ -70,6 +70,7 @@ Add the following lines to your configuration.yaml in Home Assistant to set up M
             state_topic: "homeassistant/inverter/battery_current"
             unique_id: "mp_omega_5600_v4_4"
             unit_of_measurement: "A"
+    ```
 
 
 ## Usage
