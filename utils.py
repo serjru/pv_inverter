@@ -1,3 +1,8 @@
+import os
+import time
+import paho.mqtt.client as mqtt
+
+
 def open_device(device_file):
     """Open the HID device file."""
     try:

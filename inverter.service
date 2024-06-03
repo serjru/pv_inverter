@@ -1,0 +1,15 @@
+[Unit]
+Description=Inverter HID Docker Container
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/docker run -d --rm --network="host" --device=/dev/hidraw0 serjtf/inverter:latest
+ExecStop=/usr/bin/docker stop inverter_hid
+ExecStopPost=/usr/bin/docker rm inverter_hid
+Restart=on-failure
+User=serj
+
+[Install]
+WantedBy=multi-user.target

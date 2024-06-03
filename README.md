@@ -19,8 +19,11 @@ The main purpose of this project is to monitor the performance of the MasterPowe
 - Python 3.x
 - `paho-mqtt` library for MQTT communication
 - Home Assistant for monitoring and visualization
+- Docker if want to run as container
 
 ## Installation
+
+### Option 1. From source code
 
 1. **Clone the Repository**:
    ```bash
@@ -40,6 +43,26 @@ The main purpose of this project is to monitor the performance of the MasterPowe
     pip install paho-mqtt
     ```
 
+### Option 2. As a Docker container
+
+1. **Pull latest image**:
+   ```bash
+   docker pull serjtf/inverter:latest
+   ```
+
+2. **Run the container manually**:
+   ```bash
+   docker run -d --rm --network="host" --device=/dev/hidraw0 serjtf/inverter:latest
+   ```
+
+3. **Run container as a service**:
+Create file /etc/systemd/system/inverter.service with the contents equal to the file within this repository.
+Run the following commands:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl start inverter.service
+sudo systemctl status inverter.service
+
 ## Configuration
 
 ### MQTT Broker Configuration
@@ -47,33 +70,11 @@ Ensure you have an MQTT broker running and accessible. If your broker requires a
 
 ### Home Assistant Configuration
 Add the following lines to your configuration.yaml in Home Assistant to set up MQTT sensors:
-
-```yaml
-mqtt:
-    sensor:
-        - name: "Inverter output power"
-        state_topic: "homeassistant/inverter/load_w"
-        unique_id: "mp_omega_5600_v4_1"
-        unit_of_measurement: "W"
-        
-        - name: "Inverter solar power"
-        state_topic: "homeassistant/inverter/solar_power"
-        unique_id: "mp_omega_5600_v4_2"
-        unit_of_measurement: "W"
-
-        - name: "Inverter battery state"
-        state_topic: "homeassistant/inverter/battery_capacity"
-        unique_id: "mp_omega_5600_v4_3"
-        unit_of_measurement: "%"
-
-        - name: "Inverter battery current"
-        state_topic: "homeassistant/inverter/battery_current"
-        unique_id: "mp_omega_5600_v4_4"
-        unit_of_measurement: "A"
-```
+**Look file configuration.yaml within this repository**
 
 
 ## Usage
+### Not necessary if run as a Docker image
 
 1. **Activate the Virtual Environment**:
 
