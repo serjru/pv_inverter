@@ -62,6 +62,7 @@ Run the following commands:
 sudo systemctl daemon-reload
 sudo systemctl start inverter.service
 sudo systemctl status inverter.service
+```
 
 ## Configuration
 
