@@ -39,11 +39,13 @@ try:
                 battery_capacity = parsed_qpigs['battery_capacity']
                 solar_power      = parsed_qpigs['solar_power']
                 battery_current  = parsed_qpigs['battery_current']
+                battery_voltage  = parsed_qpigs['battery_voltage']
 
                 # Publish the specific parameters
                 publish_data(mqtt_client, "homeassistant/inverter/load_w", load_w)
                 publish_data(mqtt_client, "homeassistant/inverter/solar_power", solar_power)
                 publish_data(mqtt_client, "homeassistant/inverter/battery_capacity", battery_capacity)
+                publish_data(mqtt_client, "homeassistant/inverter/battery_voltage", battery_voltage)
                 publish_data(mqtt_client, "homeassistant/inverter/battery_current", battery_current)
         time.sleep(2)  # Adjust sleep time as needed
 finally:

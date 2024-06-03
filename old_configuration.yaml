@@ -1,0 +1,87 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+mqtt:
+  sensor:
+    - name: "Inverter output power"
+      state_topic: "homeassistant/inverter/load_w"
+      unique_id: "mp_omega_5600_v4_1"
+      unit_of_measurement: "W"
+      state_class: "measurement"
+      device_class: "power"
+
+    - name: "Inverter solar power"
+      state_topic: "homeassistant/inverter/solar_power"
+      unique_id: "mp_omega_5600_v4_2"
+      unit_of_measurement: "W"
+      state_class: "measurement"
+      device_class: "power"
+
+    - name: "Inverter battery state"
+      state_topic: "homeassistant/inverter/battery_capacity"
+      unique_id: "mp_omega_5600_v4_3"
+      unit_of_measurement: "%"
+      state_class: "measurement"
+      device_class: "battery"
+
+    - name: "Inverter battery current"
+      state_topic: "homeassistant/inverter/battery_current"
+      unique_id: "mp_omega_5600_v4_4"
+      unit_of_measurement: "A"
+      state_class: "measurement"
+      device_class: "current"
+
+    - name: "Inverter battery voltage"
+      state_topic: "homeassistant/inverter/battery_voltage"
+      unique_id: "mp_omega_5600_v4_5"
+      unit_of_measurement: "V"
+      state_class: "measurement"
+      device_class: "voltage"
+
+# template:
+  # - sensor:
+  #     - name: "Inverter Battery Energy"
+  #       unit_of_measurement: "Wh"
+  #       state_class: "total_increasing"
+  #       device_class: "energy"
+  #       state: >
+  #         {% set voltage = states('sensor.inverter_battery_voltage') | float(0) %}
+  #         {% set current = states('sensor.inverter_battery_current') | float(0) %}
+  #         {{ (voltage * current) | round(2) }}
+
+  #     - name: "Inverter Solar Energy"
+  #       unit_of_measurement: "Wh"
+  #       state_class: "total_increasing"
+  #       device_class: "energy"
+  #       state: >
+  #         {{ states('sensor.inverter_solar_power') | float(0) | round(2) }}
+
+  #     - name: "Inverter Load Energy"
+  #       unit_of_measurement: "Wh"
+  #       state_class: "total_increasing"
+  #       device_class: "energy"
+  #       state: >
+  #         {{ states('sensor.inverter_output_power') | float(0) | round(2) }}
+sensor:
+- platform: integration
+  source: sensor.inverter_solar_power
+  name: "Inverter Solar Energy"
+  unit_prefix: k
+  round: 2
+  method: left
+
+- platform: integration
+  source: sensor.inverter_output_power
+  name: "Inverter Load Energy"
+  unit_prefix: k
+  round: 2
+  method: left
