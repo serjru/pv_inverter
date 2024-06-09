@@ -2,6 +2,8 @@ import os
 import time
 import paho.mqtt.client as mqtt
 
+QPIGS = b'\x51\x50\x49\x47\x53\xB7\xA9\x0d' # General status inquiry
+
 
 def open_device(device_file):
     """Open the HID device file."""
@@ -33,6 +35,29 @@ def read_response(fd):
     except OSError as e:
         if e.errno == 11:
             send_command(fd, QPIGS)  # Send a new request
+            time.sleep(0.1)  # Sleep briefly and try again
+        else:
+            print(f"Error reading data: {e}")
+    return None
+
+def read_qmod(fd):
+    # Read the response from the HID device after QMOD command.
+    try:
+        response = os.read(fd, 3).decode('utf-8', errors='ignore')  # Attempt to read up to 3 bytes
+        # Define the valid letters
+        valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
+        # Check if the string has the correct format
+        if response[0] == '(':
+            letter = response[1]
+            if letter in valid_letters:
+                return letter
+        return None
+        #if response:
+        #    print("Debug. Returning QMOD response")
+        #    return response
+    except OSError as e:
+        if e.errno == 11:
+            #send_command(fd, QMOD)  # Send a new request
             time.sleep(0.1)  # Sleep briefly and try again
         else:
             print(f"Error reading data: {e}")
