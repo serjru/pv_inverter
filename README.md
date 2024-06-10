@@ -1,4 +1,6 @@
 # Inverter HID Script
+![GitHub Release](https://img.shields.io/github/v/release/serjru/pv_inverter)
+
 
 This project contains a Python script to interface with a MasterPower Omega UM v4 inverter via a HID (Human Interface Device) connection. The script reads data from the inverter and publishes it to an MQTT broker, making it available for Home Assistant integration.
 
