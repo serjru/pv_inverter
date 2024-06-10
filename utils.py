@@ -73,7 +73,7 @@ def read_qmod(fd):
 def publish_data(mqtt_client, topic, data):
     # Publish data to the MQTT broker.
     mqtt_client.publish(topic, data)
-    print(f"Published data to {topic}: {data}")
+    #print(f"Published data to {topic}: {data}")
 
 def is_correct_output(data):
     # Check if the data follows the expected correct format.
