@@ -14,6 +14,12 @@ def open_device(device_file):
         print(f"Unable to open the device file: {e}")
         return None
 
+def close_device(fd):
+    try:
+        os.close(fd)
+    except OSError as e:
+        print(f"Error closing device file: {e}")
+
 def send_command(fd, command):
     """Send a command to the HID device."""
     try:
@@ -23,18 +29,19 @@ def send_command(fd, command):
         print(f"Error sending command: {e}")
 
 def read_response(fd):
+    # Only use for QPIGS response read!
     # Read the response from the HID device.
     try:
         response = os.read(fd, 8).decode('utf-8', errors='ignore')  # Attempt to read up to 8 bytes
         while '\r' not in response:
             time.sleep(0.1)
             response = response + os.read(fd, 8).decode('utf-8', errors='ignore')
-        s = response.split("\\")
         if response:
             return response
     except OSError as e:
         if e.errno == 11:
-            send_command(fd, QPIGS)  # Send a new request
+            print("Error 11, device not ready")
+            #send_command(fd, QPIGS)  # Send a new request
             time.sleep(0.1)  # Sleep briefly and try again
         else:
             print(f"Error reading data: {e}")
