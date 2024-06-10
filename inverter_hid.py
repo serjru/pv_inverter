@@ -20,6 +20,7 @@ COMMAND = b"QPIRI\xF8\x54"
 fd = open_device(DEVICE_FILE)
 if fd is None:
     exit(1)
+close_device(fd)
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
@@ -28,9 +29,12 @@ mqtt_client.connect("localhost", 1883, 60)
 # Continuously read and process data
 try:
     while True:
+        fd = open_device(DEVICE_FILE)
+        if fd is None:
+            exit(1)
         # Command 1. General status inquiry
         send_command(fd, QPIGS) # General Status inquiry
-        time.sleep(0.2)
+        time.sleep(1)
         data = read_response(fd)
         if data and is_correct_output(data):
             #print(data)
@@ -53,16 +57,23 @@ try:
                 publish_data(mqtt_client, "homeassistant/inverter/battery_current", battery_current)
                 publish_data(mqtt_client, "homeassistant/inverter/battery_charge_current", battery_charge_current)
                 publish_data(mqtt_client, "homeassistant/inverter/battery_discharge_current", battery_discharge_current)
+        close_device(fd)
 
         # Pause between commands
         time.sleep(3)
 
         # Command 2. Mode inquiry
+        fd = open_device(DEVICE_FILE)
+        if fd is None:
+            exit(1)
         send_command(fd, QMOD) # Mode inquiry
-        time.sleep(0.2)
+        time.sleep(1)
         inverter_mode = read_qmod(fd)
         if inverter_mode:
             publish_data(mqtt_client, "homeassistant/inverter/mode", inverter_mode)
+        close_device(fd)
+
+
         time.sleep(3)  # Interval between data updates
 finally:
     # Close the device file on exit
