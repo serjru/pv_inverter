@@ -2,6 +2,8 @@ import os
 import time
 import paho.mqtt.client as mqtt
 
+QPIGS = b'\x51\x50\x49\x47\x53\xB7\xA9\x0d' # General status inquiry
+
 
 def open_device(device_file):
     """Open the HID device file."""
@@ -12,6 +14,12 @@ def open_device(device_file):
         print(f"Unable to open the device file: {e}")
         return None
 
+def close_device(fd):
+    try:
+        os.close(fd)
+    except OSError as e:
+        print(f"Error closing device file: {e}")
+
 def send_command(fd, command):
     """Send a command to the HID device."""
     try:
@@ -21,18 +29,42 @@ def send_command(fd, command):
         print(f"Error sending command: {e}")
 
 def read_response(fd):
+    # Only use for QPIGS response read!
     # Read the response from the HID device.
     try:
         response = os.read(fd, 8).decode('utf-8', errors='ignore')  # Attempt to read up to 8 bytes
         while '\r' not in response:
             time.sleep(0.1)
             response = response + os.read(fd, 8).decode('utf-8', errors='ignore')
-        s = response.split("\\")
         if response:
             return response
     except OSError as e:
         if e.errno == 11:
-            send_command(fd, QPIGS)  # Send a new request
+            print("Error 11, device not ready")
+            #send_command(fd, QPIGS)  # Send a new request
+            time.sleep(0.1)  # Sleep briefly and try again
+        else:
+            print(f"Error reading data: {e}")
+    return None
+
+def read_qmod(fd):
+    # Read the response from the HID device after QMOD command.
+    try:
+        response = os.read(fd, 3).decode('utf-8', errors='ignore')  # Attempt to read up to 3 bytes
+        # Define the valid letters
+        valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
+        # Check if the string has the correct format
+        if response[0] == '(':
+            letter = response[1]
+            if letter in valid_letters:
+                return letter
+        return None
+        #if response:
+        #    print("Debug. Returning QMOD response")
+        #    return response
+    except OSError as e:
+        if e.errno == 11:
+            #send_command(fd, QMOD)  # Send a new request
             time.sleep(0.1)  # Sleep briefly and try again
         else:
             print(f"Error reading data: {e}")
@@ -41,7 +73,7 @@ def read_response(fd):
 def publish_data(mqtt_client, topic, data):
     # Publish data to the MQTT broker.
     mqtt_client.publish(topic, data)
-    print(f"Published data to {topic}: {data}")
+    #print(f"Published data to {topic}: {data}")
 
 def is_correct_output(data):
     # Check if the data follows the expected correct format.

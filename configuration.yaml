@@ -40,6 +40,20 @@ mqtt:
       state_class: "measurement"
       device_class: "current"
 
+    - name: "Inverter Battery Charge Current"
+      state_topic: "homeassistant/inverter/battery_charge_current"
+      unique_id: "mp_omega_5600_v4_charge_current"
+      unit_of_measurement: "A"
+      state_class: "measurement"
+      device_class: "current"
+
+    - name: "Inverter Battery Discharge Current"
+      state_topic: "homeassistant/inverter/battery_discharge_current"
+      unique_id: "mp_omega_5600_v4_discharge_current"
+      unit_of_measurement: "A"
+      state_class: "measurement"
+      device_class: "current"
+
     - name: "Inverter battery voltage"
       state_topic: "homeassistant/inverter/battery_voltage"
       unique_id: "mp_omega_5600_v4_5"
@@ -47,30 +61,38 @@ mqtt:
       state_class: "measurement"
       device_class: "voltage"
 
-# template:
-  # - sensor:
-  #     - name: "Inverter Battery Energy"
-  #       unit_of_measurement: "Wh"
-  #       state_class: "total_increasing"
-  #       device_class: "energy"
-  #       state: >
-  #         {% set voltage = states('sensor.inverter_battery_voltage') | float(0) %}
-  #         {% set current = states('sensor.inverter_battery_current') | float(0) %}
-  #         {{ (voltage * current) | round(2) }}
+    - name: "Inverter Mode"
+      state_topic: "homeassistant/inverter/mode"
+      unique_id: "mp_omega_5600_v4_mode"
+      value_template: >
+        {% set modes = {'L': 'Line', 'B': 'Battery', 'P': 'Power On', 'S': 'Standby', 'F': 'Fault', 'H': 'Hibernate'} %}
+        {{ modes.get(value, 'Unknown') }}
+      icon: mdi:power
 
-  #     - name: "Inverter Solar Energy"
-  #       unit_of_measurement: "Wh"
-  #       state_class: "total_increasing"
-  #       device_class: "energy"
-  #       state: >
-  #         {{ states('sensor.inverter_solar_power') | float(0) | round(2) }}
+template:
+  - sensor:
+      - name: "Battery Charging Power"
+        unit_of_measurement: "W"
+        state: >
+          {% set voltage = states('sensor.inverter_battery_voltage') | float(0) %}
+          {% set current = states('sensor.inverter_battery_charge_current') | float(0) %}
+          {{ (voltage * current) | round(2) }}
+        availability: >
+          {{ states('sensor.inverter_battery_voltage') not in ['unknown', 'unavailable'] and states('sensor.inverter_battery_charge_current') not in ['unknown', 'unavailable'] }}
+        device_class: power
+        state_class: measurement
 
-  #     - name: "Inverter Load Energy"
-  #       unit_of_measurement: "Wh"
-  #       state_class: "total_increasing"
-  #       device_class: "energy"
-  #       state: >
-  #         {{ states('sensor.inverter_output_power') | float(0) | round(2) }}
+      - name: "Battery Discharging Power"
+        unit_of_measurement: "W"
+        state: >
+          {% set voltage = states('sensor.inverter_battery_voltage') | float(0) %}
+          {% set current = states('sensor.inverter_battery_discharge_current') | float(0) %}
+          {{ (voltage * current) | round(2) }}
+        availability: >
+          {{ states('sensor.inverter_battery_voltage') not in ['unknown', 'unavailable'] and states('sensor.inverter_battery_discharge_current') not in ['unknown', 'unavailable'] }}
+        device_class: power
+        state_class: measurement
+
 sensor:
 - platform: integration
   source: sensor.inverter_solar_power
@@ -85,3 +107,21 @@ sensor:
   unit_prefix: k
   round: 2
   method: left
+
+- platform: integration
+    source: sensor.battery_charging_power
+    name: "Battery Energy In"
+    unit_prefix: k
+    round: 2
+    unit_time: h
+    method: trapezoidal
+    unique_id: "mp_omega_5600_v4_energy_in"
+
+  - platform: integration
+    source: sensor.battery_discharging_power
+    name: "Battery Energy Out"
+    unit_prefix: k
+    round: 2
+    unit_time: h
+    method: trapezoidal
+    unique_id: "mp_omega_5600_v4_energy_out"
