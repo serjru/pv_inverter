@@ -69,11 +69,11 @@ mqtt:
       icon: mdi:power
 
     - name: "Inverter Desired Mode"
-    state_topic: "homeassistant/inverter/desired_mode"
-    unique_id: "mp_omega_5600_v4_desired_mode"
-    value_template: >
-      {% set modes = {'L': 'Line', 'B': 'Battery'} %}
-      {{ modes.get(value, 'Unknown') }}
+      state_topic: "homeassistant/inverter/desired_mode"
+      unique_id: "mp_omega_5600_v4_desired_mode"
+      value_template: >
+        {% set modes = {'L': 'Line', 'B': 'Battery'} %}
+        {{ modes.get(value, 'Unknown') }}
 
     - name: "Inverter Actual Mode"
       state_topic: "homeassistant/inverter/actual_mode"
@@ -163,20 +163,20 @@ template:
         state_class: measurement
 
       - name: "Inverter Mode Mismatch"
-              state: >
-                {% if is_state('sensor.inverter_desired_mode', 'Battery') and not is_state('sensor.inverter_actual_mode', 'Battery') %}
-                  true
-                {% elif is_state('sensor.inverter_desired_mode', 'Line') and not is_state('sensor.inverter_actual_mode', 'Line') %}
-                  true
-                {% else %}
-                  false
-                {% endif %}
-              icon_template: >
-                {% if is_state('sensor.inverter_mode_mismatch', 'true') %}
-                  mdi:alert
-                {% else %}
-                  mdi:check
-                {% endif %}
+        state: >
+          {% if is_state('sensor.inverter_desired_mode', 'Battery') and not is_state('sensor.inverter_actual_mode', 'Battery') %}
+            true
+          {% elif is_state('sensor.inverter_desired_mode', 'Line') and not is_state('sensor.inverter_actual_mode', 'Line') %}
+            true
+          {% else %}
+            false
+          {% endif %}
+        icon_template: >
+          {% if is_state('sensor.inverter_mode_mismatch', 'true') %}
+            mdi:alert
+          {% else %}
+            mdi:check
+          {% endif %}
 
 sensor:
   - platform: integration
