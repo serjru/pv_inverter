@@ -11,5 +11,8 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip list
 
+# Create a directory for logs and set permissions
+RUN mkdir /logs && chmod 777 /logs
+
 # Run inverter_hid.py when the container launches
 CMD ["python", "./inverter_hid.py"]
