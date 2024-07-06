@@ -60,14 +60,6 @@ mqtt:
       state_class: "measurement"
       device_class: "voltage"
 
-    - name: "Inverter Mode" # Should be deleted as new "Actual mode" sensor is in use.
-      state_topic: "homeassistant/inverter/mode"
-      unique_id: "mp_omega_5600_v4_mode"
-      value_template: >
-        {% set modes = {'L': 'Line', 'B': 'Battery', 'P': 'Power On', 'S': 'Standby', 'F': 'Fault', 'H': 'Hibernate'} %}
-        {{ modes.get(value, 'Unknown') }}
-      icon: mdi:power
-
     - name: "Inverter Desired Mode"
       state_topic: "homeassistant/inverter/desired_mode"
       unique_id: "mp_omega_5600_v4_desired_mode"
@@ -115,6 +107,82 @@ switch:
             mdi:power-plug
           {% endif %}
 
+sensor:
+  - platform: mqtt
+    name: "Inverter Last Update"
+    state_topic: "homeassistant/inverter/load_w"
+    value_template: "{{ now().timestamp() }}"
+
+  - platform: template
+    sensors:
+      time_since_inverter_update:
+        friendly_name: "Time Since Inverter Update"
+        unit_of_measurement: "minutes"
+        value_template: >
+          {% if states('sensor.inverter_last_update') != 'unknown' and states('sensor.inverter_last_update') != 'unavailable' %}
+            {{ ((as_timestamp(now()) - states('sensor.inverter_last_update') | float(0)) / 60) | round(0) }}
+          {% else %}
+            0
+          {% endif %}
+      
+      inverter_mode_mismatch:
+        friendly_name: "Inverter Mode Mismatch"
+        value_template: >
+          {% if is_state('sensor.inverter_desired_mode', 'Battery') and not is_state('sensor.inverter_actual_mode', 'Battery') %}
+            true
+          {% elif is_state('sensor.inverter_desired_mode', 'Line') and not is_state('sensor.inverter_actual_mode', 'Line') %}
+            true
+          {% else %}
+            false
+          {% endif %}
+        icon_template: >
+          {% if is_state('sensor.inverter_mode_mismatch', 'true') %}
+            mdi:alert
+          {% else %}
+            mdi:check
+          {% endif %}
+
+  - platform: integration
+    source: sensor.inverter_solar_power
+    name: "Inverter Solar Energy"
+    unit_prefix: k
+    round: 2
+    method: left
+
+  - platform: integration
+    source: sensor.inverter_output_power
+    name: "Inverter Load Energy"
+    unit_prefix: k
+    round: 2
+    method: left
+
+  - platform: integration
+    source: sensor.battery_charging_power
+    name: "Battery Energy In"
+    unit_prefix: k
+    round: 2
+    unit_time: h
+    method: trapezoidal
+    unique_id: "mp_omega_5600_v4_energy_in"
+
+  - platform: integration
+    source: sensor.battery_discharging_power
+    name: "Battery Energy Out"
+    unit_prefix: k
+    round: 2
+    unit_time: h
+    method: trapezoidal
+    unique_id: "mp_omega_5600_v4_energy_out"
+
+  - platform: integration
+    source: sensor.grid_consumption_power
+    name: "Grid Consumption Energy"
+    unit_prefix: k
+    round: 2
+    unit_time: h
+    method: trapezoidal
+    unique_id: "mp_omega_5600_v4_grid_energy"
+
 template:
   - sensor:
       - name: "Battery Charging Power"
@@ -161,61 +229,3 @@ template:
           {{ states('sensor.inverter_output_power') not in ['unknown', 'unavailable'] and states('sensor.battery_discharging_power') not in ['unknown', 'unavailable'] and states('sensor.inverter_solar_power') not in ['unknown', 'unavailable'] }}
         device_class: power
         state_class: measurement
-
-      - name: "Inverter Mode Mismatch"
-        state: >
-          {% if is_state('sensor.inverter_desired_mode', 'Battery') and not is_state('sensor.inverter_actual_mode', 'Battery') %}
-            true
-          {% elif is_state('sensor.inverter_desired_mode', 'Line') and not is_state('sensor.inverter_actual_mode', 'Line') %}
-            true
-          {% else %}
-            false
-          {% endif %}
-        icon_template: >
-          {% if is_state('sensor.inverter_mode_mismatch', 'true') %}
-            mdi:alert
-          {% else %}
-            mdi:check
-          {% endif %}
-
-sensor:
-  - platform: integration
-    source: sensor.inverter_solar_power
-    name: "Inverter Solar Energy"
-    unit_prefix: k
-    round: 2
-    method: left
-
-  - platform: integration
-    source: sensor.inverter_output_power
-    name: "Inverter Load Energy"
-    unit_prefix: k
-    round: 2
-    method: left
-
-  - platform: integration
-    source: sensor.battery_charging_power
-    name: "Battery Energy In"
-    unit_prefix: k
-    round: 2
-    unit_time: h
-    method: trapezoidal
-    unique_id: "mp_omega_5600_v4_energy_in"
-
-  - platform: integration
-    source: sensor.battery_discharging_power
-    name: "Battery Energy Out"
-    unit_prefix: k
-    round: 2
-    unit_time: h
-    method: trapezoidal
-    unique_id: "mp_omega_5600_v4_energy_out"
-
-  - platform: integration
-    source: sensor.grid_consumption_power
-    name: "Grid Consumption Energy"
-    unit_prefix: k
-    round: 2
-    unit_time: h
-    method: trapezoidal
-    unique_id: "mp_omega_5600_v4_grid_energy"

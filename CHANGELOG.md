@@ -7,3 +7,7 @@
 ## 1.2.0
 - Added logging
 - Added inverter mode control
+
+## 1.2.1
+- Fixed configuration.yaml: Grid power and Grid energy parameters, also last_update parameter are now calculating correctly.
+- Fixed log files location for service.
