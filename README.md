@@ -54,7 +54,7 @@ The main purpose of this project is to monitor the performance of the MasterPowe
 
 2. **Run the container manually**:
    ```bash
-   docker run -d --rm --network="host" --privileged -v /dev:/dev serjtf/inverter:latest
+   docker run -d --rm --network="host" --privileged -v /dev serjtf/inverter:latest
    ```
 
 3. **Run container as a service**:
