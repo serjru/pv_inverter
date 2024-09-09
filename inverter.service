@@ -1,14 +1,16 @@
 [Unit]
 Description=Inverter HID Docker Container
-After=network.target
+After=docker.service network.target
+Requires=docker.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/docker run -d --rm --name inverter --network=host --device=/dev/hidraw0 -v /var/log:/logs serjtf/inverter:latest
-ExecStop=/usr/bin/docker stop inverter_hid
-ExecStopPost=/usr/bin/docker rm inverter_hid
-Restart=on-failure
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/docker run -d --rm --name inverter --network=host --privileged -v /dev -v /var/log:/logs --restart unless-stopped serjtf/inverter:latest
+ExecStop=/usr/bin/docker stop inverter
+ExecStopPost=/usr/bin/docker rm inverter
+TimeoutStopSec=20
 User=serj
 
 [Install]

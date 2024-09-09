@@ -1,9 +1,25 @@
 import os
+import re
 import time
 import paho.mqtt.client as mqtt
 
 QPIGS = b'\x51\x50\x49\x47\x53\xB7\xA9\x0d' # General status inquiry
 
+def find_inverter_device():
+    hidraw_devices = [f for f in os.listdir('/dev') if f.startswith('hidraw')]
+    for device in hidraw_devices:
+        path = f'/sys/class/hidraw/{device}/device/uevent'
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                content = f.read()
+                # Look for the HID_ID line which contains the vendor and product IDs
+                match = re.search(r'HID_ID=.*?:([0-9A-Fa-f]{8}):([0-9A-Fa-f]{8})', content)
+                if match:
+                    vendor_id, product_id = match.groups()
+                    # Convert to integers and compare
+                    if int(vendor_id, 16) == 0x0665 and int(product_id, 16) == 0x5161:
+                        return f'/dev/{device}'
+    return None
 
 def open_device(device_file):
     """Open the HID device file."""
