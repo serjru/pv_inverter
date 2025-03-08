@@ -107,19 +107,23 @@ def is_correct_output(data):
             return True
     return False
 
+class InvalidResponseError(Exception):
+    """Raised when the inverter response is invalid"""
+    pass
+
+def validate_response(data, expected_params=21):
+    """Validate the response format"""
+    if not data or not data.startswith('('):
+        raise InvalidResponseError("Invalid response format")
+    stripped_data = data[1:-3].strip()
+    parameters = stripped_data.split()
+    if len(parameters) != expected_params:
+        raise InvalidResponseError(f"Expected {expected_params} parameters, got {len(parameters)}")
+    return parameters
+
 def parse_QPIGS(data):
-    # Parse the raw data into structured parameter values.
     try:
-        # Remove the start '(' and end '\r\x00\x00' characters
-        stripped_data = data[1:-3].strip()
-        # Split the data into parameters
-        parameters = stripped_data.split()
-        
-        # Ensure there are exactly 21 parameters
-        if len(parameters) != 21:
-            raise ValueError("Unexpected number of parameters")
-        
-        # Convert parameters to appropriate types and handle errors
+        parameters = validate_response(data)
         parsed_values = {
             'utility_voltage': round(float(parameters[0]), 2),
             'utility_frequency': round(float(parameters[1]), 2),
@@ -149,6 +153,6 @@ def parse_QPIGS(data):
         parsed_values['battery_current'] = round(parsed_values['battery_charge_current'] - parsed_values['battery_discharge_current'], 2)
 
         return parsed_values
-    except (IndexError, ValueError) as e:
-        print(f"Error parsing data: {e}")
+    except (InvalidResponseError, ValueError) as e:
+        print(f"Error parsing QPIGS data: {e}")
         return None
