@@ -1,17 +1,51 @@
+# Place this file to /etc/systemd/system/inverter.service
+
 [Unit]
 Description=Inverter HID Docker Container
+Documentation=https://github.com/serjtf/pv_inverter
 After=docker.service network.target
 Requires=docker.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Wait for docker daemon and USB devices to be fully started
 ExecStartPre=/bin/sleep 10
-ExecStart=/usr/bin/docker run -d --name inverter --network=host --device=/dev/hidraw0 -v /var/log:/logs --restart unless-stopped serjtf/inverter:latest
-ExecStop=/usr/bin/docker stop inverter
-ExecStopPost=/usr/bin/docker rm inverter
+# Run container with security and resource limits
+ExecStart=/bin/bash -c '\
+    DEVICE=$(/usr/local/bin/find_inverter.sh); \
+    if [ -z "$DEVICE" ] || [ "$DEVICE" = "Inverter device not found" ]; then \
+        echo "Waiting for inverter device..."; \
+        for i in $(seq 1 6); do \
+            sleep 5; \
+            DEVICE=$(/usr/local/bin/find_inverter.sh); \
+            if [ -n "$DEVICE" ] && [ "$DEVICE" != "Inverter device not found" ]; then \
+                break; \
+            fi; \
+        done; \
+    fi; \
+    if [ -z "$DEVICE" ] || [ "$DEVICE" = "Inverter device not found" ]; then \
+        echo "Inverter device not found after waiting" >&2; \
+        exit 1; \
+    fi; \
+    echo "Found inverter device at: $DEVICE"; \
+    docker rm -f inverter || true; \
+    docker run -d \
+        --name inverter \
+        --network=host \
+        --device=$DEVICE \
+        --security-opt=no-new-privileges:true \
+        --memory=128m \
+        --cpu-shares=512 \
+        -v /var/log:/logs:rw \
+        --restart unless-stopped \
+        serjtf/inverter:latest'
+ExecStop=/usr/bin/docker stop inverter || true
+ExecStopPost=/usr/bin/docker rm inverter || true
+TimeoutStartSec=120
 TimeoutStopSec=20
-User=serj
+Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target

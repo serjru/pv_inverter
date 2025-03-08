@@ -1,143 +1,138 @@
-# Inverter HID Script
-![GitHub Release](https://img.shields.io/github/v/release/serjru/pv_inverter)
+# PV Inverter Monitor
 
-
-This project contains a Python script to interface with a MasterPower Omega UM v4 inverter via a HID (Human Interface Device) connection. The script reads data from the inverter and publishes it to an MQTT broker, making it available for Home Assistant integration.
-
-## Purpose
-
-The main purpose of this project is to monitor the performance of the MasterPower Omega UM v4 inverter in real-time. The script captures key parameters such as load power and solar power and sends this data to an MQTT broker, where it can be visualized and analyzed using Home Assistant.
+A Python-based monitoring solution for PV inverters that communicate via HID protocol. This project provides real-time monitoring of inverter metrics and integration with Home Assistant via MQTT.
 
 ## Features
 
-- **Real-time Monitoring**: Continuously reads data from the inverter.
-- **MQTT Integration**: Publishes inverter data to an MQTT broker for easy integration with Home Assistant.
-- **Home Assistant Sensors**: Supports MQTT sensors for displaying inverter load and solar power.
+- Real-time monitoring of inverter metrics:
+  - Battery voltage, current, and capacity
+  - Solar voltage, current, and power
+  - Load metrics (VA, watts, percentage)
+  - Utility and output parameters
+  - Inverter operating mode
+- MQTT integration with Home Assistant
+- Automatic device detection and handling
+- Secure containerized deployment
+- Systemd service for automatic startup and recovery
+- Resource-efficient operation
 
-## Requirements
+## Prerequisites
 
-- Raspberry Pi (or any Linux-based system with Python support)
-- MasterPower Omega UM v4 inverter
+- Linux-based system (tested on Raspberry Pi)
+- Docker
 - Python 3.x
-- `paho-mqtt` library for MQTT communication
-- Home Assistant for monitoring and visualization
-- Docker if want to run as container
+- MQTT broker (e.g., Mosquitto)
+- Home Assistant (for dashboard integration)
 
 ## Installation
 
-### Option 1. From source code
+### 1. Clone the Repository
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/serjru/pv_inverter.git
-   cd inverter-hid-script
-   ```
+```bash
+git clone https://github.com/serjtf/pv_inverter.git
+cd pv_inverter
+```
 
-2. **Set Up Virtual Environment**:
+### 2. Set Up Device Detection
 
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
+1. Install the device detection script:
+```bash
+sudo cp find_inverter.sh /usr/local/bin/
+sudo chmod 755 /usr/local/bin/find_inverter.sh
+```
 
-3. **Install Dependencies**:
-    ```bash
-    pip install paho-mqtt
-    ```
+2. Create udev rule for device permissions:
+```bash
+echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="0665", ATTRS{idProduct}=="5161", MODE="0666"' | sudo tee /etc/udev/rules.d/99-inverter.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
 
-### Option 2. As a Docker container
+### 3. Install the Service
 
-1. **Pull latest image**:
-   ```bash
-   docker pull serjtf/inverter:latest
-   ```
+1. Copy the service file:
+```bash
+sudo cp inverter.service /etc/systemd/system/
+```
 
-2. **Run the container manually**:
-   ```bash
-   docker run -d --rm --network="host" --name inverter --device=/dev/hidraw0 serjtf/inverter:latest
-   ```
-
-3. **Run container as a service**:
-Create file /etc/systemd/system/inverter.service with the contents equal to the file within this repository.
-Run the following commands:
+2. Enable and start the service:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl start inverter.service
-sudo systemctl status inverter.service
+sudo systemctl enable inverter
+sudo systemctl start inverter
 ```
 
 ## Configuration
 
-### MQTT Broker Configuration
-Ensure you have an MQTT broker running and accessible. If your broker requires authentication, ensure you have the correct username and password.
+### Docker Container Settings
 
-### Home Assistant Configuration
-Add the following lines to your configuration.yaml in Home Assistant to set up MQTT sensors:
-**Look file configuration.yaml within this repository**
+The service is configured with the following security and resource limits:
+- Memory limit: 128MB
+- CPU shares: 512
+- No privilege escalation allowed
+- Host network access for MQTT communication
+- Read-write access to logs directory
 
+### MQTT Configuration
 
-## Usage
-### Not necessary if run as a Docker image
+Default MQTT settings:
+- Broker: localhost
+- Port: 1883
+- Topics:
+  - Command: homeassistant/inverter/set_mode
+  - Desired Mode: homeassistant/inverter/desired_mode
+  - Actual Mode: homeassistant/inverter/actual_mode
+  - Metrics: homeassistant/inverter/{metric_name}
 
-1. **Activate the Virtual Environment**:
+## Monitoring and Maintenance
 
+### Check Service Status
 ```bash
-source venv/bin/activate
+sudo systemctl status inverter
 ```
 
-2. **Run the Script**:
-
+### View Logs
 ```bash
-sudo /path/to/venv/bin/python /path/to/inverter_hid.py
+journalctl -fu inverter
 ```
 
-## Running in Background
-To keep the script running independently of your SSH session, use one of the following methods:
-
-### Using nohup
-
+### Manual Device Detection
 ```bash
-nohup sudo /path/to/venv/bin/python /path/to/inverter_hid.py &
+/usr/local/bin/find_inverter.sh
 ```
 
-### Using systemd
+## Troubleshooting
 
-Create a systemd service file to run the script as a service:
+1. If the device is not detected:
+   - Check physical connection
+   - Verify device permissions: `ls -l /dev/hidraw*`
+   - Check udev rules: `udevadm monitor --property`
 
-```ini
-[Unit]
-Description=Inverter HID Script
-After=network.target
+2. If the service fails to start:
+   - Check logs: `journalctl -xeu inverter.service`
+   - Verify Docker is running: `systemctl status docker`
+   - Check device detection: `/usr/local/bin/find_inverter.sh`
 
-[Service]
-ExecStart=/path/to/venv/bin/python /path/to/inverter_hid.py
-WorkingDirectory=/path/to/project
-StandardOutput=inherit
-StandardError=inherit
-Restart=always
-User=yourusername
+## Security Features
 
-[Install]
-WantedBy=multi-user.target
-```
+- Container runs with limited privileges
+- Resource limits prevent resource exhaustion
+- Automatic device permission management
+- Safe device handling through context managers
+- Proper cleanup of stale containers
 
-Enable and start the service:
+## Contributing
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl start inverter.service
-sudo systemctl enable inverter.service
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+[Add your license information here]
 
-## Acknowledgements
+## Changelog
 
-Home Assistant
-paho-mqtt
+See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes.
 
+## Acknowledgments
 
-More information could be found at:
-https://www.solarweb.net/forosolar/fotovoltaica-sistemas-aislados-la-red/41795-raspberry-e-hibrido-tipo-axpert-3.html
+[Add any acknowledgments here]
