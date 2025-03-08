@@ -43,12 +43,27 @@ COMMAND_LINE    = b'\x50\x4F\x50\x30\x30\xC2\x48\x0D' # Set mode to SUB (Line)
 # See commands definitions in 
 # https://forums.aeva.asn.au/uploads/293/HS_MS_MSX_RS232_Protocol_20140822_after_current_upgrade.pdf
 
-# Open the HID device file
-fd = open_device(DEVICE_FILE)
-if fd is None:
-#    logger.error(f"Failed to open HID device file. Exiting")
-    exit(1)
-close_device(fd)
+class InverterConnection:
+    def __init__(self, device_file):
+        self.device_file = device_file
+        self.fd = None
+
+    def __enter__(self):
+        self.fd = open_device(self.device_file)
+        return self.fd
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.fd is not None:
+            close_device(self.fd)
+
+def handle_inverter_command(device_file, command, read_func=read_response):
+    with InverterConnection(device_file) as fd:
+        if fd is None:
+            print(f"Failed to open HID device file")
+            return None
+        send_command(fd, command)
+        time.sleep(1)
+        return read_func(fd)
 
 # Initialize the MQTT client
 mqtt_client = mqtt.Client()
@@ -58,7 +73,7 @@ def on_connect(client, userdata, flags, rc):
 #        logger.info("Connected to MQTT broker")
         client.subscribe(MQTT_TOPIC_COMMAND)
     else:
-        logger.error(f"Failed to connect to MQTT broker. Return code: {rc}")
+        print(f"Failed to connect to MQTT broker. Return code: {rc}")
 
 def on_message(client, userdata, msg):
 #    logger.info(f"Received message: {msg.topic} {msg.payload.decode()}")
@@ -85,62 +100,31 @@ try:
     mqtt_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
     mqtt_client.loop_start()
 
-    # Main loop to monitor actual mode
     while True:
-
-        # Command 1. General status inquiry
-        fd = open_device(DEVICE_FILE)
-        if fd is None:
-#            logger.error(f"Failed to open HID device file. Exiting")
-            exit(1)
-        send_command(fd, QPIGS) # General Status inquiry
-        time.sleep(1)
-        data = read_response(fd)
+        # Command 1: General status inquiry
+        data = handle_inverter_command(DEVICE_FILE, QPIGS)
         if data and is_correct_output(data):
             parsed_qpigs = parse_QPIGS(data)
             if parsed_qpigs:
-                # Extract specific parameters
-                load_w           = parsed_qpigs['load_w']
-                battery_capacity = parsed_qpigs['battery_capacity']
-                solar_power      = parsed_qpigs['solar_power']
-                battery_current  = parsed_qpigs['battery_current']
-                battery_voltage  = parsed_qpigs['battery_voltage']
-                battery_charge_current    = parsed_qpigs['battery_charge_current']
-                battery_discharge_current = parsed_qpigs['battery_discharge_current']
+                for key, value in parsed_qpigs.items():
+                    if key.startswith('unknown'):
+                        continue
+                    publish_data(mqtt_client, f"homeassistant/inverter/{key}", value)
 
-                # Publish the specific parameters
-                publish_data(mqtt_client, "homeassistant/inverter/load_w", load_w)
-                publish_data(mqtt_client, "homeassistant/inverter/solar_power", solar_power)
-                publish_data(mqtt_client, "homeassistant/inverter/battery_capacity", battery_capacity)
-                publish_data(mqtt_client, "homeassistant/inverter/battery_voltage", battery_voltage)
-                publish_data(mqtt_client, "homeassistant/inverter/battery_current", battery_current)
-                publish_data(mqtt_client, "homeassistant/inverter/battery_charge_current", battery_charge_current)
-                publish_data(mqtt_client, "homeassistant/inverter/battery_discharge_current", battery_discharge_current)
-        close_device(fd)
-
-        # Pause between commands
         time.sleep(3)
 
-        # Command 2. Mode inquiry
-        fd = open_device(DEVICE_FILE)
-        if fd is None:
-            exit(1)
-        send_command(fd, QMOD) # Mode inquiry
-        time.sleep(1)
-        inverter_mode = read_qmod(fd)
+        # Command 2: Mode inquiry
+        inverter_mode = handle_inverter_command(DEVICE_FILE, QMOD, read_qmod)
         if inverter_mode:
-            publish_data(mqtt_client, "homeassistant/inverter/mode", inverter_mode) # Remove this line when HA config changes to remove this parameter.
+            publish_data(mqtt_client, "homeassistant/inverter/mode", inverter_mode)
             publish_data(mqtt_client, MQTT_TOPIC_ACTUAL_MODE, inverter_mode)
-        close_device(fd)
 
-        time.sleep(3)  # Interval between data updates
+        time.sleep(3)
 
 except Exception as e:
-    print(f"Unhandled exception: {e}", exc_info=True)
+    print(f"Unhandled exception: {e}")
 #    logger.critical(f"Unhandled exception: {e}", exc_info=True)
 finally:
     mqtt_client.loop_stop()
     mqtt_client.disconnect()
 #    logger.info("Script terminated")
-    # Close the device file on exit
-    os.close(fd)
