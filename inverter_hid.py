@@ -1,34 +1,41 @@
 import os
 import time
+import logging
+from logging.handlers import RotatingFileHandler
 import paho.mqtt.client as mqtt
-# import logging
-from utils import *
+from utils import (
+    find_inverter_device, open_device, close_device,
+    send_command, read_response, read_qmod,
+    publish_data, is_correct_output, parse_QPIGS,
+)
 
-# Set up logging configuration
-# Directory where logs will be written
-#log_directory = "/logs"
-#os.makedirs(log_directory, exist_ok=True)
+# Set up logging with rotation to prevent disk space exhaustion
+log_directory = "/logs"
+os.makedirs(log_directory, exist_ok=True)
 
-#logging.basicConfig(
-#    level=logging.DEBUG,  # Set the logging level to DEBUG for detailed logs
-#    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-#    handlers=[
-#        logging.FileHandler(os.path.join(log_directory, "inverter.log")),  # Log to a file in /logs
-#        logging.StreamHandler()  # Also log to the console
-#    ]
-#)
-
-# Get a logger for this module
-#logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        RotatingFileHandler(
+            os.path.join(log_directory, "inverter.log"),
+            maxBytes=5*1024*1024,  # 5 MB per file
+            backupCount=2
+        ),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 DEVICE_FILE = find_inverter_device()
 if DEVICE_FILE is None:
-    print("Inverter device not found. Exiting.")
+    logger.critical("Inverter device not found. Exiting.")
     exit(1)
+logger.info(f"Found inverter device: {DEVICE_FILE}")
 
-# MQTT configuration
-MQTT_BROKER             = "localhost"
-MQTT_PORT               = 1883
+# MQTT configuration (overridable via environment variables)
+MQTT_BROKER             = os.environ.get("MQTT_BROKER", "localhost")
+MQTT_PORT               = int(os.environ.get("MQTT_PORT", "1883"))
 MQTT_KEEPALIVE          = 60
 MQTT_TOPIC_COMMAND      = "homeassistant/inverter/set_mode"
 MQTT_TOPIC_DESIRED_MODE = "homeassistant/inverter/desired_mode"
@@ -59,38 +66,42 @@ class InverterConnection:
 def handle_inverter_command(device_file, command, read_func=read_response):
     with InverterConnection(device_file) as fd:
         if fd is None:
-            print(f"Failed to open HID device file")
+            logger.error("Failed to open HID device file")
             return None
         send_command(fd, command)
         time.sleep(1)
         return read_func(fd)
 
-# Initialize the MQTT client
-mqtt_client = mqtt.Client()
+# Initialize the MQTT client with v2 callback API
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-#        logger.info("Connected to MQTT broker")
-        client.subscribe(MQTT_TOPIC_COMMAND)
+def on_connect(client, userdata, flags, reason_code, properties):
+    if reason_code.is_failure:
+        logger.error(f"Failed to connect to MQTT broker: {reason_code}")
     else:
-        print(f"Failed to connect to MQTT broker. Return code: {rc}")
+        logger.info("Connected to MQTT broker")
+        client.subscribe(MQTT_TOPIC_COMMAND)
 
 def on_message(client, userdata, msg):
-#    logger.info(f"Received message: {msg.topic} {msg.payload.decode()}")
-    fd = open_device(DEVICE_FILE)
-#    logger.debug(f"Openinig HID device file {DEVICE_FILE}")
-    if fd is not None:
-#        logger.debug("HID device file opened successfully")
+    try:
         desired_mode = msg.payload.decode()
-        if desired_mode == "L":
-            send_command(fd, COMMAND_LINE)
-            client.publish(MQTT_TOPIC_DESIRED_MODE, "L")
-        elif desired_mode == "B":
-            send_command(fd, COMMAND_BATTERY)
-            client.publish(MQTT_TOPIC_DESIRED_MODE, "B")
-        close_device(fd)
-#    else:
-#        logger.error("Failed to open device")
+        logger.info(f"Received mode change command: {desired_mode}")
+        with InverterConnection(DEVICE_FILE) as fd:
+            if fd is None:
+                logger.error("Failed to open HID device for mode change")
+                return
+            if desired_mode == "L":
+                send_command(fd, COMMAND_LINE)
+                client.publish(MQTT_TOPIC_DESIRED_MODE, "L")
+                logger.info("Mode set to Line")
+            elif desired_mode == "B":
+                send_command(fd, COMMAND_BATTERY)
+                client.publish(MQTT_TOPIC_DESIRED_MODE, "B")
+                logger.info("Mode set to Battery")
+            else:
+                logger.warning(f"Unknown mode command: {desired_mode}")
+    except Exception as e:
+        logger.error(f"Error handling mode change command: {e}")
 
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
@@ -100,31 +111,54 @@ try:
     mqtt_client.connect(MQTT_BROKER, MQTT_PORT, MQTT_KEEPALIVE)
     mqtt_client.loop_start()
 
+    consecutive_errors = 0
+    MAX_CONSECUTIVE_ERRORS = 10
+
     while True:
         # Command 1: General status inquiry
-        data = handle_inverter_command(DEVICE_FILE, QPIGS)
-        if data and is_correct_output(data):
-            parsed_qpigs = parse_QPIGS(data)
-            if parsed_qpigs:
-                for key, value in parsed_qpigs.items():
-                    if key.startswith('unknown'):
-                        continue
-                    publish_data(mqtt_client, f"homeassistant/inverter/{key}", value)
+        try:
+            data = handle_inverter_command(DEVICE_FILE, QPIGS)
+            if data and is_correct_output(data):
+                parsed_qpigs = parse_QPIGS(data)
+                if parsed_qpigs:
+                    for key, value in parsed_qpigs.items():
+                        if key.startswith('unknown'):
+                            continue
+                        publish_data(mqtt_client, f"homeassistant/inverter/{key}", value)
+                    consecutive_errors = 0
+            else:
+                consecutive_errors += 1
+                logger.warning(f"QPIGS: no valid data (attempt {consecutive_errors})")
+        except Exception as e:
+            consecutive_errors += 1
+            logger.error(f"Error in QPIGS cycle ({consecutive_errors}): {e}")
 
         time.sleep(3)
 
         # Command 2: Mode inquiry
-        inverter_mode = handle_inverter_command(DEVICE_FILE, QMOD, read_qmod)
-        if inverter_mode:
-            publish_data(mqtt_client, "homeassistant/inverter/mode", inverter_mode)
-            publish_data(mqtt_client, MQTT_TOPIC_ACTUAL_MODE, inverter_mode)
+        try:
+            inverter_mode = handle_inverter_command(DEVICE_FILE, QMOD, read_qmod)
+            if inverter_mode:
+                publish_data(mqtt_client, "homeassistant/inverter/mode", inverter_mode)
+                publish_data(mqtt_client, MQTT_TOPIC_ACTUAL_MODE, inverter_mode)
+                consecutive_errors = 0
+            else:
+                consecutive_errors += 1
+                logger.warning(f"QMOD: no valid data (attempt {consecutive_errors})")
+        except Exception as e:
+            consecutive_errors += 1
+            logger.error(f"Error in QMOD cycle ({consecutive_errors}): {e}")
+
+        # If too many consecutive errors, re-detect device and reset
+        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+            logger.critical(f"Too many consecutive errors ({consecutive_errors}), exiting for container restart")
+            break
 
         time.sleep(3)
 
 except Exception as e:
-    print(f"Unhandled exception: {e}")
-#    logger.critical(f"Unhandled exception: {e}", exc_info=True)
+    logger.critical(f"Unhandled exception: {e}", exc_info=True)
 finally:
     mqtt_client.loop_stop()
     mqtt_client.disconnect()
-#    logger.info("Script terminated")
+    logger.info("Script terminated")
