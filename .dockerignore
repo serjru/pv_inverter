@@ -1,0 +1,12 @@
+.git
+.gitignore
+.dockerignore
+*.md
+*.pdf
+LICENSE
+temp.py
+temp_test.py
+claude/
+inverter.service
+find_inverter.sh
+configuration.yaml

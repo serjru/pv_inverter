@@ -1,9 +1,9 @@
 import os
 import re
 import time
-import paho.mqtt.client as mqtt
+import logging
 
-QPIGS = b'\x51\x50\x49\x47\x53\xB7\xA9\x0d' # General status inquiry
+logger = logging.getLogger(__name__)
 
 def find_inverter_device():
     hidraw_devices = [f for f in os.listdir('/dev') if f.startswith('hidraw')]
@@ -27,81 +27,71 @@ def open_device(device_file):
         fd = os.open(device_file, os.O_RDWR | os.O_NONBLOCK)
         return fd
     except OSError as e:
-        print(f"Unable to open the device file: {e}")
+        logger.error(f"Unable to open the device file: {e}")
         return None
 
 def close_device(fd):
     try:
         os.close(fd)
     except OSError as e:
-        print(f"Error closing device file: {e}")
+        logger.error(f"Error closing device file: {e}")
 
 def send_command(fd, command):
     """Send a command to the HID device."""
     try:
         os.write(fd, command)
-        #print(f"Sent command: {command}")
     except OSError as e:
-        print(f"Error sending command: {e}")
+        logger.error(f"Error sending command: {e}")
 
-def read_response(fd):
+def read_response(fd, max_retries=50):
     # Only use for QPIGS response read!
     # Read the response from the HID device.
+    # max_retries * 0.1s = 5 seconds timeout by default
     try:
         response = os.read(fd, 8).decode('utf-8', errors='ignore')  # Attempt to read up to 8 bytes
-        while '\r' not in response:
+        retries = 0
+        while '\r' not in response and retries < max_retries:
             time.sleep(0.1)
             response = response + os.read(fd, 8).decode('utf-8', errors='ignore')
-        if response:
+            retries += 1
+        if '\r' in response:
             return response
+        logger.warning(f"Read timeout after {retries} retries, no complete response received")
+        return None
     except OSError as e:
         if e.errno == 11:
-            print("Error 11, device not ready")
-            #send_command(fd, QPIGS)  # Send a new request
-            time.sleep(0.1)  # Sleep briefly and try again
+            logger.debug("Device not ready (errno 11)")
+            time.sleep(0.1)
         else:
-            print(f"Error reading data: {e}")
+            logger.error(f"Error reading data: {e}")
     return None
 
 def read_qmod(fd):
     # Read the response from the HID device after QMOD command.
     try:
         response = os.read(fd, 3).decode('utf-8', errors='ignore')  # Attempt to read up to 3 bytes
-        # Define the valid letters
         valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
-        # Check if the string has the correct format
         if response[0] == '(':
             letter = response[1]
             if letter in valid_letters:
                 return letter
         return None
-        #if response:
-        #    print("Debug. Returning QMOD response")
-        #    return response
     except OSError as e:
         if e.errno == 11:
-            #send_command(fd, QMOD)  # Send a new request
-            time.sleep(0.1)  # Sleep briefly and try again
+            time.sleep(0.1)
         else:
-            print(f"Error reading data: {e}")
+            logger.error(f"Error reading QMOD data: {e}")
     return None
 
 def publish_data(mqtt_client, topic, data):
-    # Publish data to the MQTT broker.
     mqtt_client.publish(topic, data)
-    #print(f"Published data to {topic}: {data}")
 
 def is_correct_output(data):
     # Check if the data follows the expected correct format.
     if data.startswith('('):
-        # Remove the start and end characters for further validation
         stripped_data = data[1:-3].strip()
-        # Split the data into parameters
         parameters = stripped_data.split()
-        
-        # Check if the number of parameters matches the expected count
-        expected_parameter_count = 21  # Adjust this based on actual data
-        #print(len(parameters))
+        expected_parameter_count = 21
         if len(parameters) == expected_parameter_count:
             # Further checks can be added here if needed
             return True
@@ -154,5 +144,5 @@ def parse_QPIGS(data):
 
         return parsed_values
     except (InvalidResponseError, ValueError) as e:
-        print(f"Error parsing QPIGS data: {e}")
+        logger.error(f"Error parsing QPIGS data: {e}")
         return None
