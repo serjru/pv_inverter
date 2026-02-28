@@ -1,6 +1,13 @@
 #!/bin/bash
 # This file should be located in /usr/local/bin/
 
+VERBOSE=0
+[ "$1" = "-v" ] && VERBOSE=1
+
+log() {
+    [ "$VERBOSE" -eq 1 ] && echo "$@" >&2
+}
+
 # Function to find the inverter device by vendor and product ID
 find_inverter_device() {
     if ! [ -d /sys/class/hidraw ]; then
@@ -16,21 +23,21 @@ find_inverter_device() {
 
     for device in /sys/class/hidraw/hidraw*; do
         if [ -f "$device/device/uevent" ]; then
-            echo "Checking device: $device" >&2
-            echo "Device uevent content:" >&2
-            cat "$device/device/uevent" >&2
-            
+            log "Checking device: $device"
+            log "Device uevent content:"
+            [ "$VERBOSE" -eq 1 ] && cat "$device/device/uevent" >&2
+
             # Get the HID_ID line specifically
             HID_ID=$(grep "HID_ID=" "$device/device/uevent")
-            echo "HID_ID line: $HID_ID" >&2
-            
+            log "HID_ID line: $HID_ID"
+
             # Match the format with leading zeros: 0003:00000665:00005161
             if grep -q "HID_ID=.*:0*665:0*5161" "$device/device/uevent"; then
-                echo "Found matching device: $device" >&2
+                log "Found matching device: $device"
                 basename "$device"
                 return 0
             else
-                echo "Device does not match required IDs (0665:5161)" >&2
+                log "Device does not match required IDs (0665:5161)"
             fi
         fi
     done
@@ -53,4 +60,4 @@ if [ -n "$device" ]; then
 else
     echo "Inverter device not found" >&2
     exit 1
-fi 
+fi
