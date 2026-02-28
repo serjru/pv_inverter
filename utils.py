@@ -43,44 +43,49 @@ def send_command(fd, command):
     except OSError as e:
         logger.error(f"Error sending command: {e}")
 
-def read_response(fd, max_retries=50):
-    # Only use for QPIGS response read!
-    # Read the response from the HID device.
-    # max_retries * 0.1s = 5 seconds timeout by default
-    try:
-        response = os.read(fd, 8).decode('utf-8', errors='ignore')  # Attempt to read up to 8 bytes
-        retries = 0
-        while '\r' not in response and retries < max_retries:
-            time.sleep(0.1)
-            response = response + os.read(fd, 8).decode('utf-8', errors='ignore')
-            retries += 1
-        if '\r' in response:
-            return response
-        logger.warning(f"Read timeout after {retries} retries, no complete response received")
-        return None
-    except OSError as e:
-        if e.errno == 11:
-            logger.debug("Device not ready (errno 11)")
-            time.sleep(0.1)
-        else:
-            logger.error(f"Error reading data: {e}")
+def read_response(fd, timeout_ms=2000, poll_ms=20):
+    """Read QPIGS response from HID device using poll-based reading.
+    Device typically responds in ~450ms with 112 bytes."""
+    deadline = time.time() + timeout_ms / 1000
+    chunks = []
+    while time.time() < deadline:
+        try:
+            chunk = os.read(fd, 8)
+            chunks.append(chunk)
+            if b'\r' in chunk:
+                return b''.join(chunks).decode('utf-8', errors='ignore')
+        except OSError as e:
+            if e.errno == 11:  # EAGAIN - no data yet
+                time.sleep(poll_ms / 1000)
+            else:
+                logger.error(f"Error reading data: {e}")
+                return None
+    logger.warning(f"Read timeout after {timeout_ms}ms, received {sum(len(c) for c in chunks)} bytes")
     return None
 
-def read_qmod(fd):
-    # Read the response from the HID device after QMOD command.
-    try:
-        response = os.read(fd, 3).decode('utf-8', errors='ignore')  # Attempt to read up to 3 bytes
-        valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
-        if response[0] == '(':
-            letter = response[1]
-            if letter in valid_letters:
-                return letter
-        return None
-    except OSError as e:
-        if e.errno == 11:
-            time.sleep(0.1)
-        else:
-            logger.error(f"Error reading QMOD data: {e}")
+def read_qmod(fd, timeout_ms=2000, poll_ms=20):
+    """Read QMOD response from HID device using poll-based reading.
+    Device typically responds in ~500ms with 5 bytes."""
+    deadline = time.time() + timeout_ms / 1000
+    valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
+    chunks = []
+    while time.time() < deadline:
+        try:
+            chunk = os.read(fd, 8)
+            chunks.append(chunk)
+            response = b''.join(chunks).decode('utf-8', errors='ignore')
+            if len(response) >= 2 and response[0] == '(':
+                letter = response[1]
+                if letter in valid_letters:
+                    return letter
+                return None
+        except OSError as e:
+            if e.errno == 11:  # EAGAIN - no data yet
+                time.sleep(poll_ms / 1000)
+            else:
+                logger.error(f"Error reading QMOD data: {e}")
+                return None
+    logger.warning("QMOD read timeout")
     return None
 
 def publish_data(mqtt_client, topic, data):
