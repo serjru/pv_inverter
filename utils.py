@@ -36,6 +36,19 @@ def close_device(fd):
     except OSError as e:
         logger.error(f"Error closing device file: {e}")
 
+def flush_device(fd):
+    """Drain any stale data from the HID device before sending a new command."""
+    flushed = 0
+    while True:
+        try:
+            chunk = os.read(fd, 64)
+            flushed += len(chunk)
+        except OSError:
+            break
+    if flushed > 0:
+        logger.debug(f"Flushed {flushed} stale bytes from device")
+    return flushed
+
 def send_command(fd, command):
     """Send a command to the HID device."""
     try:
@@ -43,39 +56,50 @@ def send_command(fd, command):
     except OSError as e:
         logger.error(f"Error sending command: {e}")
 
-def read_response(fd, timeout_ms=2000, poll_ms=20):
+def read_response(fd, timeout_ms=3000, poll_ms=20):
     """Read QPIGS response from HID device using poll-based reading.
-    Device typically responds in ~450ms with 112 bytes."""
+    Device typically responds in ~450ms with 112 bytes.
+    Finds '(' start marker and reads until '\\r' terminator."""
     deadline = time.time() + timeout_ms / 1000
-    chunks = []
+    buf = b''
     while time.time() < deadline:
         try:
             chunk = os.read(fd, 8)
-            chunks.append(chunk)
-            if b'\r' in chunk:
-                return b''.join(chunks).decode('utf-8', errors='ignore')
+            buf += chunk
+            # Look for start marker if we haven't found it yet
+            start = buf.find(b'(')
+            if start > 0:
+                buf = buf[start:]  # discard bytes before '('
+            # Check for complete response
+            if b'(' in buf and b'\r' in buf:
+                response = buf.decode('utf-8', errors='ignore')
+                # Strip anything after \r
+                cr_pos = response.index('\r')
+                return response[:cr_pos + 1]
         except OSError as e:
             if e.errno == 11:  # EAGAIN - no data yet
                 time.sleep(poll_ms / 1000)
             else:
                 logger.error(f"Error reading data: {e}")
                 return None
-    logger.warning(f"Read timeout after {timeout_ms}ms, received {sum(len(c) for c in chunks)} bytes")
+    logger.warning(f"Read timeout after {timeout_ms}ms, received {len(buf)} bytes")
     return None
 
-def read_qmod(fd, timeout_ms=2000, poll_ms=20):
+def read_qmod(fd, timeout_ms=3000, poll_ms=20):
     """Read QMOD response from HID device using poll-based reading.
-    Device typically responds in ~500ms with 5 bytes."""
+    Device typically responds in ~500ms with 5 bytes.
+    Finds '(' start marker and extracts mode letter."""
     deadline = time.time() + timeout_ms / 1000
     valid_letters = {'P', 'S', 'L', 'B', 'F', 'H'}
-    chunks = []
+    buf = b''
     while time.time() < deadline:
         try:
             chunk = os.read(fd, 8)
-            chunks.append(chunk)
-            response = b''.join(chunks).decode('utf-8', errors='ignore')
-            if len(response) >= 2 and response[0] == '(':
-                letter = response[1]
+            buf += chunk
+            # Find start marker
+            start = buf.find(b'(')
+            if start >= 0 and len(buf) > start + 1:
+                letter = chr(buf[start + 1])
                 if letter in valid_letters:
                     return letter
                 return None

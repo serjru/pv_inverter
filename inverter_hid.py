@@ -8,6 +8,7 @@ from utils import (
     find_inverter_device, open_device, close_device,
     send_command, read_response, read_qmod,
     publish_data, is_correct_output, parse_QPIGS,
+    flush_device,
 )
 
 # Set up logging with rotation to prevent disk space exhaustion
@@ -90,10 +91,18 @@ def send_and_read(command, read_func=read_response):
     if fd is None:
         logger.error("Failed to open HID device")
         return None
+    flush_device(fd)
     send_command(fd, command)
     response = read_func(fd)
     if response is None:
-        # Device may be in bad state, try reopening
+        # First retry: just flush and resend (device fd is likely fine)
+        logger.debug("First read failed, flushing and retrying")
+        flush_device(fd)
+        send_command(fd, command)
+        response = read_func(fd)
+    if response is None:
+        # Second retry: reopen the device (fd may be broken)
+        logger.warning("Second read failed, reopening device")
         fd = reopen_device()
         if fd is None:
             return None
@@ -161,7 +170,10 @@ try:
                         consecutive_errors = 0
                 else:
                     consecutive_errors += 1
-                    logger.warning(f"QPIGS: no valid data (attempt {consecutive_errors})")
+                    if data is None:
+                        logger.warning(f"QPIGS: read timeout (attempt {consecutive_errors})")
+                    else:
+                        logger.warning(f"QPIGS: invalid response [{len(data)}B] (attempt {consecutive_errors})")
             except Exception as e:
                 consecutive_errors += 1
                 logger.error(f"Error in QPIGS cycle ({consecutive_errors}): {e}")
