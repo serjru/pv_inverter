@@ -15,7 +15,7 @@ RUN pip list
 RUN mkdir /logs && chmod 777 /logs
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD pgrep -f inverter_hid.py || exit 1
+  CMD python -c "import os; os.kill(1, 0)" || exit 1
 
 # Run inverter_hid.py when the container launches
 CMD ["python", "./inverter_hid.py"]
