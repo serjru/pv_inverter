@@ -17,12 +17,14 @@ mqtt:
       unit_of_measurement: "W"
       state_class: "measurement"
       device_class: "power"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter solar power"
       state_topic: "homeassistant/inverter/solar_power"
       unique_id: "mp_omega_5600_v4_2"
       unit_of_measurement: "W"
       state_class: "measurement"
+      availability_topic: "homeassistant/inverter/availability"
       device_class: "power"
 
     - name: "Inverter battery state"
@@ -31,6 +33,7 @@ mqtt:
       unit_of_measurement: "%"
       state_class: "measurement"
       device_class: "battery"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter battery current"
       state_topic: "homeassistant/inverter/battery_current"
@@ -38,6 +41,7 @@ mqtt:
       unit_of_measurement: "A"
       state_class: "measurement"
       device_class: "current"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter Battery Charge Current"
       state_topic: "homeassistant/inverter/battery_charge_current"
@@ -45,6 +49,7 @@ mqtt:
       unit_of_measurement: "A"
       state_class: "measurement"
       device_class: "current"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter Battery Discharge Current"
       state_topic: "homeassistant/inverter/battery_discharge_current"
@@ -52,6 +57,7 @@ mqtt:
       unit_of_measurement: "A"
       state_class: "measurement"
       device_class: "current"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter battery voltage"
       state_topic: "homeassistant/inverter/battery_voltage"
@@ -59,10 +65,12 @@ mqtt:
       unit_of_measurement: "V"
       state_class: "measurement"
       device_class: "voltage"
+      availability_topic: "homeassistant/inverter/availability"
 
     - name: "Inverter Desired Mode"
       state_topic: "homeassistant/inverter/desired_mode"
       unique_id: "mp_omega_5600_v4_desired_mode"
+      availability_topic: "homeassistant/inverter/availability"
       value_template: >
         {% set modes = {'L': 'Line', 'B': 'Battery'} %}
         {{ modes.get(value, 'Unknown') }}
@@ -70,6 +78,7 @@ mqtt:
     - name: "Inverter Actual Mode"
       state_topic: "homeassistant/inverter/actual_mode"
       unique_id: "mp_omega_5600_v4_actual_mode"
+      availability_topic: "homeassistant/inverter/availability"
       value_template: >
         {% set modes = {'L': 'Line', 'B': 'Battery', 'P': 'Power On', 'S': 'Standby', 'F': 'Fault', 'H': 'Hibernate'} %}
         {{ modes.get(value, 'Unknown') }}
@@ -78,6 +87,7 @@ mqtt:
     - name: "Inverter Desired Mode"
       command_topic: "homeassistant/inverter/set_mode"
       state_topic: "homeassistant/inverter/desired_mode"
+      availability_topic: "homeassistant/inverter/availability"
       value_template: "{{ value }}"
       payload_on: "B"
       payload_off: "L"

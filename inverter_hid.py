@@ -40,6 +40,7 @@ MQTT_KEEPALIVE          = 60
 MQTT_TOPIC_COMMAND      = "homeassistant/inverter/set_mode"
 MQTT_TOPIC_DESIRED_MODE = "homeassistant/inverter/desired_mode"
 MQTT_TOPIC_ACTUAL_MODE  = "homeassistant/inverter/actual_mode"
+MQTT_TOPIC_AVAILABILITY = "homeassistant/inverter/availability"
 
 # Command to send (example from research)
 QPIGS           = b'\x51\x50\x49\x47\x53\xB7\xA9\x0d' # General status inquiry
@@ -74,6 +75,7 @@ def handle_inverter_command(device_file, command, read_func=read_response):
 
 # Initialize the MQTT client with v2 callback API
 mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqtt_client.will_set(MQTT_TOPIC_AVAILABILITY, "offline", retain=True)
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code.is_failure:
@@ -81,6 +83,7 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         logger.info("Connected to MQTT broker")
         client.subscribe(MQTT_TOPIC_COMMAND)
+        client.publish(MQTT_TOPIC_AVAILABILITY, "online", retain=True)
 
 def on_message(client, userdata, msg):
     try:
@@ -122,8 +125,6 @@ try:
                 parsed_qpigs = parse_QPIGS(data)
                 if parsed_qpigs:
                     for key, value in parsed_qpigs.items():
-                        if key.startswith('unknown'):
-                            continue
                         publish_data(mqtt_client, f"homeassistant/inverter/{key}", value)
                     consecutive_errors = 0
             else:
@@ -159,6 +160,7 @@ try:
 except Exception as e:
     logger.critical(f"Unhandled exception: {e}", exc_info=True)
 finally:
+    mqtt_client.publish(MQTT_TOPIC_AVAILABILITY, "offline", retain=True)
     mqtt_client.loop_stop()
     mqtt_client.disconnect()
     logger.info("Script terminated")

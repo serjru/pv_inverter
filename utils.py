@@ -131,11 +131,11 @@ def parse_QPIGS(data):
             'solar_voltage': round(float(parameters[13]), 2),
             'battery_voltage_scc': round(float(parameters[14]), 2),
             'battery_discharge_current': int(parameters[15]),
-            'unknown7': parameters[16],  # Keeping as string until further understanding
-            'unknown8': parameters[17],  # Keeping as string until further understanding
-            'unknown9': parameters[18],  # Keeping as string until further understanding
-            'unknown10': parameters[19], # Keeping as string until further understanding
-            'unknown11': parameters[20], # Keeping as string until further understanding
+            'device_status': parameters[16],           # 8-bit binary flags (see protocol docs)
+            'battery_voltage_offset_fans': int(parameters[17]),  # in 10mV units
+            'eeprom_version': int(parameters[18]),
+            'pv_charging_power': int(parameters[19]),  # PV charging power in watts
+            'device_status_2': parameters[20],         # 3-bit extended status flags
         }
 
         # Calculate additional values
